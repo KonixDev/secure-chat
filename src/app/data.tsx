@@ -1,102 +1,43 @@
-export const userData = [
+export const room = [
     {
-        id: 1,
-        avatar: '/User1.png',
         messages: [
             {
                 id: 1,
-                avatar: '/User1.png',
-                name: 'Jane Doe',
-                message: 'Hey, Jakob',
+                nickname: 'Jane Doe',
+                text: 'Hey, Jakob',
+                timestamp:  '2021-09-01T12:00:00',
+                expiresAt: '2021-09-01T12:05:00',
             },
             {
                 id: 2,
-                avatar: '/LoggedInUser.jpg',
-                name: 'Jakob Hoeg',
-                message: 'Hey!',
-            },
-            {
-                id : 3,
-                avatar: '/User1.png',
-                name: 'Jane Doe',
-                message: 'How are you?',
-            },
-            {
-                id: 4,
-                avatar: '/LoggedInUser.jpg',
-                name: 'Jakob Hoeg',
-                message: 'I am good, you?',
-            },
-            {
-                id: 5,
-                avatar: '/User1.png',
-                name: 'Jane Doe',
-                message: 'I am good too!',
-            },
-            {
-                id: 6,
-                avatar: '/LoggedInUser.jpg',
-                name: 'Jakob Hoeg',
-                message: 'That is good to hear!'
-            },
-            {
-                id: 7,
-                avatar: '/User1.png',
-                name: 'Jane Doe',
-                message: 'How has your day been so far?',
-            },
-            {
-                id: 8,
-                avatar: '/LoggedInUser.jpg',
-                name: 'Jakob Hoeg',
-                message: 'It has been good. I went for a run this morning and then had a nice breakfast. How about you?',
-            },
-            {
-                id: 9,
-                avatar: '/User1.png',
-                name: 'Jane Doe',
-                message: 'I had a relaxing day. Just catching up on some reading.',
+                nickname: 'Jakob Hoeg',
+                text: 'Hey!',
+                timestamp: '2021-09-01T12:01:00',
+                expiresAt: '2021-09-01T12:06:00',
             }
         ],
-        name: 'Jane Doe',
+        roomId: '12345',
     },
-    {
-        id: 2,
-        avatar: '/User2.png',
-        name: 'John Doe',
-    },
-    {
-        id: 3,
-        avatar: '/User3.png',
-        name: 'Elizabeth Smith',
-    },
-    {
-        id: 4,
-        avatar: '/User4.png',
-        name: 'John Smith',
-    }
 ];
 
-export type UserData = (typeof userData)[number];
+export type RoomData = (typeof room)[number];
 
 export const loggedInUserData = {
-    id: 5,
-    avatar: '/LoggedInUser.jpg',
-    name: 'Jakob Hoeg',
+    nickname: 'Jakob Hoeg',
 };
 
 export type LoggedInUserData = (typeof loggedInUserData);
 
 export interface Message {
     id: number;
-    avatar: string;
-    name: string;
-    message: string;
+    timestamp: string;
+    nickname: string;
+    text: string;
+    expiresAt: string;
 }
 
 export interface User {
     id: number;
-    avatar: string;
     messages: Message[];
-    name: string;
+    nickname: string;
 }

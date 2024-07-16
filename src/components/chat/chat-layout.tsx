@@ -1,29 +1,28 @@
 "use client";
 
-import { userData } from "@/app/data";
+import { LoggedInUserData, RoomData } from "@/app/data";
 import React, { useEffect, useState } from "react";
 import {
-  ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { cn } from "@/lib/utils";
-import { Sidebar } from "../sidebar";
 import { Chat } from "./chat";
 
 interface ChatLayoutProps {
   defaultLayout: number[] | undefined;
   defaultCollapsed?: boolean;
   navCollapsedSize: number;
+  selectedRoom: RoomData;
+  messages: any;
+  sendMessageIo: (newMessage: any) => void;
 }
 
 export function ChatLayout({
   defaultLayout = [320, 480],
-  defaultCollapsed = false,
-  navCollapsedSize,
+  selectedRoom,
+  sendMessageIo,
+  messages
 }: ChatLayoutProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
-  const [selectedUser, setSelectedUser] = React.useState(userData[0]);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -53,45 +52,12 @@ export function ChatLayout({
       }}
       className="h-full items-stretch"
     >
-      <ResizablePanel
-        defaultSize={defaultLayout[0]}
-        collapsedSize={navCollapsedSize}
-        collapsible={true}
-        minSize={isMobile ? 0 : 24}
-        maxSize={isMobile ? 8 : 30}
-        onCollapse={() => {
-          setIsCollapsed(true);
-          document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-            true
-          )}`;
-        }}
-        onExpand={() => {
-          setIsCollapsed(false);
-          document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-            false
-          )}`;
-        }}
-        className={cn(
-          isCollapsed && "min-w-[50px] md:min-w-[70px] transition-all duration-300 ease-in-out"
-        )}
-      >
-        <Sidebar
-          isCollapsed={isCollapsed || isMobile}
-          links={userData.map((user) => ({
-            name: user.name,
-            messages: user.messages ?? [],
-            avatar: user.avatar,
-            variant: selectedUser.name === user.name ? "grey" : "ghost",
-          }))}
-          isMobile={isMobile}
-        />
-      </ResizablePanel>
-      <ResizableHandle withHandle />
       <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
         <Chat
-          messages={selectedUser.messages}
-          selectedUser={selectedUser}
+          messages={messages}
+          selectedRoom={selectedRoom}
           isMobile={isMobile}
+          sendMessageIo={sendMessageIo}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
