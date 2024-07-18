@@ -23,7 +23,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const socketInstance = io("http://localhost:4000", {
+    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKETIO_SERVER, {
       auth: {
         masterKey: masterKey,
         nickname: nickname,
