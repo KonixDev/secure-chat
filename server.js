@@ -2,6 +2,7 @@ const { randomUUID } = require("crypto");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const crypto = require("crypto");
 
 const app = express();
 const port = 4000;
@@ -16,6 +17,7 @@ const io = new Server(httpServer, {
 const MASTER_KEY = "asd"; // Define tu Master Key aquí
 const MESSAGE_EXPIRATION_TIME = 30 * 60 * 1000; // 30 minutos en milisegundos
 let rooms = {}; // Object to store rooms and their messages
+let publicKeys = {}; // Object to store public keys of users
 
 io.use((socket, next) => {
   const { masterKey, nickname, roomId } = socket.handshake.auth;
@@ -28,6 +30,17 @@ io.use((socket, next) => {
 });
 
 io.on("connection", socket => {
+  socket.on("disconnect", () => {
+    delete publicKeys[socket.id];
+    socket.broadcast.emit('publicKeys', publicKeys);
+    console.log(`${socket.nickname} disconnected from room ${socket.roomId}`);
+  });
+
+  socket.on('sharePublicKey', ({ publicKey }) => {
+    publicKeys[socket.id] = publicKey;
+    socket.broadcast.emit('publicKeys', publicKeys);
+    socket.emit('publicKeys', publicKeys);
+  });
 
   socket.on("authenticate", ({ masterKey, nickname, roomId }) => {
     if (masterKey === MASTER_KEY) {
@@ -66,10 +79,10 @@ io.on("connection", socket => {
     io.to(socket.roomId).emit("messagesUpdated", rooms[socket.roomId].messages);
   });
 
-  socket.on("message", msg => {
+  socket.on("message", ({ recipientId, encryptedMessage }) => {
     const message = {
       id: randomUUID(),
-      text: msg.text,
+      text: encryptedMessage,
       nickname: socket.nickname,
       timestamp: Date.now(),
       expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME // 30 minutes
@@ -84,12 +97,7 @@ io.on("connection", socket => {
       rooms[socket.roomId].messages = rooms[socket.roomId].messages.filter(
         m => m.id !== message.id
       );
-      rooms[socket.roomId].users[socket.nickname].messages = rooms[
-        socket.roomId
-      ].users[socket.nickname].messages.filter(m => m.id !== message.id);
-      io
-        .to(socket.roomId)
-        .emit("messagesUpdated", rooms[socket.roomId].messages);
+      io.to(socket.roomId).emit("messagesUpdated", rooms[socket.roomId].messages);
     }, MESSAGE_EXPIRATION_TIME);
   });
 
@@ -100,9 +108,7 @@ io.on("connection", socket => {
     );
     if (message) {
       message.text = newText;
-      io
-        .to(socket.roomId)
-        .emit("messagesUpdated", rooms[socket.roomId].messages);
+      io.to(socket.roomId).emit("messagesUpdated", rooms[socket.roomId].messages);
     }
   });
 
@@ -114,17 +120,8 @@ io.on("connection", socket => {
       rooms[socket.roomId].messages = rooms[socket.roomId].messages.filter(
         m => m.id !== id
       );
-      rooms[socket.roomId].users[socket.nickname].messages = rooms[
-        socket.roomId
-      ].users[socket.nickname].messages.filter(m => m.id !== id);
-      io
-        .to(socket.roomId)
-        .emit("messagesUpdated", rooms[socket.roomId].messages);
+      io.to(socket.roomId).emit("messagesUpdated", rooms[socket.roomId].messages);
     }
-  });
-
-  socket.on("disconnect", () => {
-    console.log(`${socket.nickname} disconnected from room ${socket.roomId}`);
   });
 });
 

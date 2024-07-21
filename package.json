@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "node": "node server.js"
+    "node": "node server/src/index.js"
   },
   "dependencies": {
+    "@chatereum/react-e2ee": "^3.0.1",
     "@emoji-mart/data": "^1.1.2",
     "@emoji-mart/react": "^1.1.1",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -21,6 +22,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "dotenv": "^16.4.5",
     "emoji-mart": "^5.5.2",
     "express": "^4.19.2",
     "framer-motion": "^10.18.0",

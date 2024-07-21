@@ -25,6 +25,8 @@ export function ChatList({
   const { nickname } = useSocket();
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
 
+console.log({messages})
+
   React.useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
@@ -47,7 +49,7 @@ export function ChatList({
         className="w-full overflow-y-auto overflow-x-hidden h-full flex flex-col"
       >
         <AnimatePresence>
-          {messages?.map((message, index) => (
+          {messages && messages?.map((message, index) => (
             <motion.div
               key={index}
               layout

@@ -1,7 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import {
+  initializeSocket,
+  sendAuthenticationDetails,
+  sendMessage as sendSocketMessage
+} from "../utils/socketUtils";
 
 const SocketContext = createContext();
 
@@ -10,64 +14,50 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [nickname, setNickname] = useState("");
+  const [masterKey, setMasterKey] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [socket, setSocket] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState([]);
 
+  useEffect(
+    () => {
+      console.log({ messages });
+    },
+    [messages]
+  );
+
+  useEffect(
+    () => {
+      if (!socket) return;
+      if (!authenticated && masterKey && nickname && roomId) {
+        sendAuthenticationDetails(masterKey, nickname, roomId);
+      }
+    },
+    [socket, authenticated, masterKey, nickname, roomId]
+  );
+
   const authenticate = (masterKey, nickname, roomId) => {
-    if (!masterKey || !nickname || !roomId) {
-      return;
-    }
-
-    if (authenticated) {
-      return;
-    }
-
-    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKETIO_SERVER, {
-      auth: {
-        masterKey: masterKey,
-        nickname: nickname,
-        roomId: roomId
-      }
-    });
-
-    socketInstance.on("connect_error", err => {
-      console.error("Authentication error:", err.message);
-      setAuthenticated(false);
-    });
-
-    socketInstance.emit("authenticate", { masterKey, nickname, roomId });
-
-    socketInstance.on("authenticated", () => {
-      console.log("Authenticated successfully");
-      setSocket(socketInstance);
-      setAuthenticated(true);
-      setNickname(nickname);
-    });
-
-    socketInstance.on("initialMessages", msgs => {
-      setMessages(msgs);
-    });
-
-    socketInstance.on("roomData", roomData => {
-      if (roomData) {
-        setSelectedRoom(roomData);
-        setMessages(roomData.messages);
-      }
-    });
-
-    socketInstance.on("message", msg => {
-      setMessages(prev => [...prev, msg]);
-    });
-
-    socketInstance.on("messagesUpdated", msgs => {
-      setMessages(msgs);
-    });
+    if (!masterKey || !nickname || !roomId || authenticated) return;
+    setMasterKey(masterKey);
+    setNickname(nickname);
+    setRoomId(roomId);
+    setSocket(
+      initializeSocket({
+        masterKey,
+        nickname,
+        roomId,
+        setMessages,
+        setAuthenticated,
+        setNickname,
+        setSelectedRoom,
+      })
+    );
   };
 
-  const sendMessage = message => {
+  const sendMessage = text => {
     if (socket) {
-      socket.emit("message", message);
+      sendSocketMessage(text);
     }
   };
 
