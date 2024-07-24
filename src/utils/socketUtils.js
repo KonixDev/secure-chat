@@ -108,6 +108,20 @@ export const initializeSocket = ({
         });
       }
     });
+
+    socket.on("roomMessages", async buffer => {
+      const messages = await decodeFromBuffer({
+        buffer,
+        secret: secretKey,
+        iv
+      });
+      const decryptedMessages = await handleMessages(
+        messages,
+        clientInstanceE2EE,
+        nickname
+      );
+      setMessages(decryptedMessages);
+    });
   }
 
   return socket;
