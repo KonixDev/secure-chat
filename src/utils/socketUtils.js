@@ -1,8 +1,11 @@
 "use client";
 
 import { io } from "socket.io-client";
+import { encodeToBuffer, decodeFromBuffer } from "../utils/cryptoUtils";
 
 let socket;
+let secretKey;
+let iv;
 
 export const initializeSocket = ({
   masterKey,
@@ -39,21 +42,28 @@ export const initializeSocket = ({
       setAuthenticated(true);
       const ownPublicKey = await clientInstanceE2EE.exportPublicKey();
       setPublicKeys(prev => ({ ...prev, [nickname]: ownPublicKey }));
-      socket.emit("sharePublicKey", { publicKey: ownPublicKey, nickname });
-    });
-
-    socket.on("roomMessages", async messages => {
-      console.log("Received room messages:", messages);
-      const decryptedMessages = await handleMessages(
-        messages,
-        clientInstanceE2EE,
-        nickname
+      socket.emit(
+        "sharePublicKey",
+        await encodeToBuffer({
+          data: { publicKey: ownPublicKey, nickname },
+          secret: secretKey,
+          iv
+        })
       );
-      setMessages(decryptedMessages);
     });
 
-    socket.on("message", async msg => {
+    socket.on("keys", data => {
+      secretKey = new Uint8Array(
+        data.SECRET_KEY.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+      );
+      iv = new Uint8Array(
+        data.IV.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+      );
+    });
+
+    socket.on("message", async buffer => {
       try {
+        const msg = await decodeFromBuffer({ buffer, secret: secretKey, iv });
         const targetMessage = msg.text.find(p => p.nickname === nickname);
         if (targetMessage) {
           const decryptedMessage = await clientInstanceE2EE.decrypt(
@@ -69,18 +79,23 @@ export const initializeSocket = ({
         }
       } catch (error) {
         console.error("Decryption failed:", error);
-        setMessages(prev => [...prev, { ...msg, text: "[Encrypted message]" }]);
+        setMessages(prev => [
+          ...prev,
+          { ...buffer, text: "[Encrypted message]" }
+        ]);
       }
     });
 
-    socket.on("publicKey", async data => {
+    socket.on("publicKey", async buffer => {
       if (clientInstanceE2EE) {
+        const data = await decodeFromBuffer({ buffer, secret: secretKey, iv });
         setPublicKeys(prev => ({ ...prev, [data.nickname]: data.publicKey }));
       }
     });
 
-    socket.on("publicKeys", async data => {
+    socket.on("publicKeys", async buffer => {
       if (clientInstanceE2EE) {
+        const data = await decodeFromBuffer({ buffer, secret: secretKey, iv });
         console.log({ data });
         const length = Object.keys(data).length;
         if (length === 0) return;
@@ -98,6 +113,24 @@ export const initializeSocket = ({
   return socket;
 };
 
+export const sendMessage = async (msg, clientInstanceE2EE, publicKeys) => {
+  if (socket && clientInstanceE2EE) {
+    const encryptedMessages = await encryptMessageToAllParticipants(
+      msg.text,
+      publicKeys,
+      clientInstanceE2EE
+    );
+    socket.emit(
+      "message",
+      await encodeToBuffer({
+        data: { data: { participants: encryptedMessages } },
+        secret: secretKey,
+        iv
+      })
+    );
+  }
+};
+
 const encryptMessageToAllParticipants = async (
   message,
   participants,
@@ -109,17 +142,6 @@ const encryptMessageToAllParticipants = async (
       return { nickname: key, message: encryptedMessage };
     })
   );
-};
-
-export const sendMessage = async (msg, clientInstanceE2EE, publicKeys) => {
-  if (socket && clientInstanceE2EE) {
-    const encryptedMessages = await encryptMessageToAllParticipants(
-      msg.text,
-      publicKeys,
-      clientInstanceE2EE
-    );
-    socket.emit("message", { participants: encryptedMessages });
-  }
 };
 
 export const handleMessages = async (
@@ -149,7 +171,14 @@ export const handleMessages = async (
   return result;
 };
 
-export const sendAuthenticationDetails = (masterKey, nickname, roomId) => {
+export const sendAuthenticationDetails = async (
+  masterKey,
+  nickname,
+  roomId
+) => {
   if (!masterKey || !nickname || !roomId) return;
-  socket.emit("authenticate", { masterKey, nickname, roomId });
+  const encodedDetails = await encodeToBuffer({
+    data: { masterKey, nickname, roomId }
+  });
+  socket.emit("authenticate", encodedDetails);
 };

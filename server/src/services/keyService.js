@@ -7,7 +7,7 @@ const addPublicKey = (roomId, socketId, publicKey) => {
   publicKeys[roomId][socketId] = publicKey;
 };
 
-const getPublicKeys = (roomId) => {
+const getPublicKeys = roomId => {
   return publicKeys[roomId] || {};
 };
 

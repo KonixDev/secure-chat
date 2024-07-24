@@ -1,5 +1,70 @@
 "use client";
 
+// Función para codificar datos con TextEncoder y encriptar
+export const encodeToBuffer = async ({data, secret = '', iv = ''}) => {
+  const jsonString = JSON.stringify(data);
+  let encoded = new TextEncoder().encode(jsonString);
+  if (iv && secret) {
+    encoded = await encrypt(encoded, secret, iv);
+  }
+  return encoded;
+};
+
+// Función para decodificar y desencriptar datos con TextDecoder
+export const decodeFromBuffer = async ({buffer, iv = '', secret = ''}) => {
+  if (iv && secret) {
+    buffer = await decrypt(buffer, secret, iv);
+  }
+  const jsonString = new TextDecoder().decode(buffer);
+  return JSON.parse(jsonString);
+};
+
+// Función para encriptar datos
+export const encrypt = async (buffer, secretKey, iv) => {
+  const cryptoKey = await window.crypto.subtle.importKey(
+    'raw',
+    secretKey,
+    { name: 'AES-CTR' },
+    false,
+    ['encrypt']
+  );
+
+  const encrypted = await window.crypto.subtle.encrypt(
+    {
+      name: 'AES-CTR',
+      counter: iv,
+      length: 128 // 128 bits = 16 bytes
+    },
+    cryptoKey,
+    buffer
+  );
+  return new Uint8Array(encrypted);
+};
+
+// Función para desencriptar datos
+export const decrypt = async (buffer, secretKey, iv) => {
+  const cryptoKey = await window.crypto.subtle.importKey(
+    'raw',
+    secretKey,
+    { name: 'AES-CTR' },
+    false,
+    ['decrypt']
+  );
+
+  const decrypted = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-CTR',
+      counter: iv,
+      length: 128
+    },
+    cryptoKey,
+    buffer
+  );
+
+  return new Uint8Array(decrypted);
+};
+
+
 export const handleMessages = async (messages, clientInstanceE2EE, nickname) => {
   const result = await Promise.all(
     messages.map(async (m) => {
