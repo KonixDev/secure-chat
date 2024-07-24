@@ -7,12 +7,16 @@ const createRoom = (roomId) => {
     rooms[roomId] = {
       messages: [],
       roomId: roomId,
+      sockets: []
     };
   }
   return rooms[roomId];
 };
 
 const addMessage = (roomId, message) => {
+  if (!rooms[roomId]) {
+    createRoom(roomId);
+  }
   rooms[roomId].messages.push(message);
 };
 

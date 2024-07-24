@@ -1,34 +1,34 @@
 const { randomUUID } = require("crypto");
-const { MESSAGE_EXPIRATION_TIME } = require("../config");
 const {
   addMessage,
   deleteMessage,
   editMessage,
   getRoom
 } = require("../services/roomService");
+const { MESSAGE_EXPIRATION_TIME } = require("../config");
+const { getPublicKeys } = require("../services/keyService");
 
-const sendMessage = (io, socket, { recipientId, messageData }) => {
-  const message = {
+const sendMessage = async (io, socket, { participants }) => {
+  const data = {
     id: randomUUID(),
-    text: messageData,
+    text: participants,
     nickname: socket.nickname,
     timestamp: Date.now(),
     expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME
   };
 
-  addMessage(socket.roomId, message);
-  io.to(socket.roomId).emit("message", message);
+  addMessage(socket.roomId, data);
+  io.to(socket.roomId).emit("message", data);
 
   setTimeout(() => {
-    deleteMessage(socket.roomId, message.id);
-    io
-      .to(socket.roomId)
-      .emit("messagesUpdated", getRoom(socket.roomId).messages);
+    deleteMessage(socket.roomId, data.id);
+    io.to(socket.roomId).emit("messagesUpdated", getRoom(socket.roomId).messages);
   }, MESSAGE_EXPIRATION_TIME);
 };
 
-const handleEditMessage = (io, socket, { id, newText }) => {
-  editMessage(socket.roomId, id, newText);
+const handleEditMessage = async (io, socket, { id, newText }) => {
+  const encryptedText = await socket.e2ee.encrypt(newText);
+  editMessage(socket.roomId, id, encryptedText);
   io.to(socket.roomId).emit("messagesUpdated", getRoom(socket.roomId).messages);
 };
 

@@ -1,17 +1,24 @@
 let publicKeys = {};
 
-const addPublicKey = (socketId, publicKey) => {
-  publicKeys[socketId] = publicKey;
+const addPublicKey = (roomId, socketId, publicKey) => {
+  if (!publicKeys[roomId]) {
+    publicKeys[roomId] = {};
+  }
+  publicKeys[roomId][socketId] = publicKey;
 };
 
-const removePublicKey = (socketId) => {
-  delete publicKeys[socketId];
+const getPublicKeys = (roomId) => {
+  return publicKeys[roomId] || {};
 };
 
-const getPublicKeys = () => publicKeys;
+const removePublicKey = (roomId, socketId) => {
+  if (publicKeys[roomId]) {
+    delete publicKeys[roomId][socketId];
+  }
+};
 
 module.exports = {
   addPublicKey,
-  removePublicKey,
-  getPublicKeys
+  getPublicKeys,
+  removePublicKey
 };

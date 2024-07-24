@@ -25,8 +25,6 @@ export function ChatList({
   const { nickname } = useSocket();
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
 
-console.log({messages})
-
   React.useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
