@@ -34,6 +34,7 @@ export interface Message {
     nickname: string;
     text: string;
     expiresAt: string;
+    audio: string;
 }
 
 export interface User {

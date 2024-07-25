@@ -16,19 +16,23 @@ import {  Message } from "@/app/data";
 import { Textarea } from "../ui/textarea";
 import { EmojiPicker } from "../emoji-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { recordAudio } from "@/utils/audioUtils";
 
 interface ChatBottombarProps {
   sendMessage: (newMessage: Message) => void;
+  sendAudioMessage: (audioBlob: Blob) => void;
   isMobile: boolean;
 }
 
 export const BottombarIcons = [{ icon: FileImage }, { icon: Paperclip }];
 
 export default function ChatBottombar({
-  sendMessage, isMobile,
+  sendMessage, isMobile, sendAudioMessage
 }: ChatBottombarProps) {
   const [message, setMessage] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recorder, setRecorder] = useState<any>(null);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(event.target.value);
@@ -54,6 +58,28 @@ export default function ChatBottombar({
         inputRef.current.focus();
       }
     }
+  };
+
+
+  const startRecording = async () => {
+    const newRecorder = await recordAudio();
+    setRecorder(newRecorder);
+    newRecorder.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = async () => {
+    if (!recorder) {
+      return;
+    }
+    const audio = await recorder.stop();
+    setIsRecording(false);
+    // await sendAudioMessage(audio.audioBlob);
+    const newMessage: any = {
+      text: audio.audioBlob,
+      type: "audio",
+    };
+    sendAudioMessage(newMessage);
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -87,45 +113,54 @@ export default function ChatBottombar({
             <PopoverContent 
             side="top"
             className="w-full p-2">
-             {message.trim() || isMobile ? (
-               <div className="flex gap-2">
-                <Link 
-              href="#"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "h-9 w-9",
-                "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
-              )}
+            {message.trim() || isMobile ? (
+              <div className="flex gap-2">
+                <Link
+                  href="#"
+                  onClick={()=> {
+                    if (isRecording) {
+                      stopRecording();
+                    } else {
+                      startRecording();
+                    }
+                  }}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "h-9 w-9",
+                    "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white",
+                    isRecording ? "bg-red-500 text-white" : ""
+                  )}
+                >
+                  <Mic size={20} className="text-muted-foreground" />
+                </Link>
+                {BottombarIcons.map((icon, index) => (
+                  <Link
+                    key={index}
+                    href="#"
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "icon" }),
+                      "h-9 w-9",
+                      "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
+                    )}
+                  >
+                    <icon.icon size={20} className="text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Link
+                href="#"
+                onClick={startRecording}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "h-9 w-9",
+                  "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
+                )}
               >
                 <Mic size={20} className="text-muted-foreground" />
               </Link>
-               {BottombarIcons.map((icon, index) => (
-                 <Link
-                   key={index}
-                   href="#"
-                   className={cn(
-                     buttonVariants({ variant: "ghost", size: "icon" }),
-                     "h-9 w-9",
-                     "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
-                   )}
-                 >
-                   <icon.icon size={20} className="text-muted-foreground" />
-                 </Link>
-               ))}
-             </div>
-             ) : (
-              <Link 
-              href="#"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "h-9 w-9",
-                "dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-white"
-              )}
-              >
-                <Mic size={20} className="text-muted-foreground" />
-              </Link>
-             )}
-            </PopoverContent>
+            )}
+          </PopoverContent>
           </Popover>
         {!message.trim() && !isMobile && (
           <div className="flex">

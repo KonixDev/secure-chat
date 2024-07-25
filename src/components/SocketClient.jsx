@@ -14,6 +14,7 @@ const SocketClient = () => {
     selectedRoom,
     authenticate,
     sendMessage,
+    sendAudioMessage,
     editMessage,
     deleteMessage,
     clearMessages
@@ -31,6 +32,7 @@ const SocketClient = () => {
                 messages={messages}
                 currentUser={nickname}
                 sendMessageIo={sendMessage}
+                sendAudioIo={sendAudioMessage}
               />
             </div>
           </main>}

@@ -12,6 +12,7 @@ interface ChatListProps {
   messages?: Message[];
   selectedRoom: RoomData;
   sendMessage: (newMessage: Message) => void;
+  sendAudioMessage: (audioBlob: Blob) => void;
   isMobile: boolean;
 }
 
@@ -19,11 +20,14 @@ export function ChatList({
   messages,
   selectedRoom,
   sendMessage,
+  sendAudioMessage,
   isMobile,
 }: ChatListProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const { nickname } = useSocket();
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+
+  console.log({messages})
 
   React.useEffect(() => {
     if (messagesContainerRef.current) {
@@ -39,7 +43,6 @@ export function ChatList({
       setSelectedMessage(messageId);
     }
   };
-
   return (
     <div className="w-full overflow-y-auto overflow-x-hidden h-full flex flex-col">
       <div
@@ -87,7 +90,12 @@ export function ChatList({
                   {message.nickname === nickname && (
                     <span className="text-xs text-gray-500">Yo:</span>
                   )}
-                  {" "}{message.text}
+                  {" "}
+                  {typeof message.text === 'string' && message.text !== "[Encrypted Audio]" ? (
+                    message.text
+                  ) : (
+                    <audio controls src={message.audio}></audio>
+                  )}
                   {selectedMessage === message.id.toString() && (
                     <div className="text-xs text-gray-500 mt-1">
                       Expires at: {new Date(message.expiresAt).toLocaleString()}
@@ -107,7 +115,7 @@ export function ChatList({
           ))}
         </AnimatePresence>
       </div>
-      <ChatBottombar sendMessage={sendMessage} isMobile={isMobile} />
+      <ChatBottombar sendMessage={sendMessage} isMobile={isMobile} sendAudioMessage={sendAudioMessage} />
     </div>
   );
 }

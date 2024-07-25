@@ -12,7 +12,8 @@ const {
   sendMessage,
   handleEditMessage,
   handleDeleteMessage,
-  handleClearMessages
+  handleClearMessages,
+  sendAudio
 } = require("./controllers/messageController");
 const { getRoom } = require("./services/roomService");
 const { decrypt } = require("./utils/cryptoUtils");
@@ -61,6 +62,8 @@ io.on("connection", socket => {
   socket.on("clearMessages", () => handleClearMessages(io, socket));
 
   socket.on("message", data => sendMessage(io, socket, data));
+
+  socket.on("audioMessage", data => sendAudio(io, socket, data));
 
   socket.on("editMessage", data => handleEditMessage(io, socket, data));
 

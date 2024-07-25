@@ -15,11 +15,34 @@ const sendMessage = async (io, socket, dataBuff) => {
     text: dataDecoded,
     nickname: socket.nickname,
     timestamp: Date.now(),
-    expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME
+    expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME,
+    type: dataBuff?.type || "text"
   };
 
   addMessage(socket.roomId, data);
   io.to(socket.roomId).emit("message", encodeToBuffer(data));
+
+  setTimeout(() => {
+    deleteMessage(socket.roomId, data.id);
+    io
+      .to(socket.roomId)
+      .emit("messagesUpdated", encodeToBuffer(getRoom(socket.roomId).messages));
+  }, MESSAGE_EXPIRATION_TIME);
+};
+
+const sendAudio =  async (io, socket, dataBuff) => {
+  const dataDecoded = dataBuff.data.participants;
+  const data = {
+    id: randomUUID(),
+    text: "",
+    audio: dataDecoded,
+    nickname: socket.nickname,
+    timestamp: Date.now(),
+    expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME,
+  };
+
+  addMessage(socket.roomId, data);
+  io.to(socket.roomId).emit("audio", encodeToBuffer(data));
 
   setTimeout(() => {
     deleteMessage(socket.roomId, data.id);
@@ -53,6 +76,7 @@ const handleClearMessages = (io, socket) => {
 
 module.exports = {
   sendMessage,
+  sendAudio,
   handleEditMessage,
   handleDeleteMessage,
   handleClearMessages

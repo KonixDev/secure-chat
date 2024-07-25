@@ -15,12 +15,14 @@ interface ChatLayoutProps {
   selectedRoom: RoomData;
   messages: any;
   sendMessageIo: (newMessage: any) => void;
+  sendAudioIo: (audioBlob: Blob) => void;
 }
 
 export function ChatLayout({
   defaultLayout = [320, 480],
   selectedRoom,
   sendMessageIo,
+  sendAudioIo,
   messages
 }: ChatLayoutProps) {
   const [isMobile, setIsMobile] = useState(false);
@@ -58,6 +60,7 @@ export function ChatLayout({
           selectedRoom={selectedRoom}
           isMobile={isMobile}
           sendMessageIo={sendMessageIo}
+          sendAudioIo={sendAudioIo}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

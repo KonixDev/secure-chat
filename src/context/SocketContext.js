@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   initializeSocket,
   sendAuthenticationDetails,
+  sendSocketAudioMessage,
   sendMessage as sendSocketMessage
 } from "../utils/socketUtils";
 import { initializeE2EE, clearStoredKeyPair } from "../utils/e2eeClient";
@@ -43,7 +44,6 @@ export const SocketProvider = ({ children }) => {
     () => {
       const setRemotePublicKeysAndDecrypt = async () => {
         if (!clientInstanceE2EE || initMessages.length === 0) return;
-        await setRemotePublicKeys(clientInstanceE2EE, publicKeys);
         setPublicKeysSetted(true);
         decryptInitialMessages();
       };
@@ -108,9 +108,15 @@ export const SocketProvider = ({ children }) => {
     setSocket(newSocket);
   };
 
-  const sendMessage = text => {
+  const sendMessage = (msg) => {
     if (socket) {
-      sendSocketMessage(text, clientInstanceE2EE, publicKeys);
+      sendSocketMessage(msg, clientInstanceE2EE, publicKeys);
+    }
+  };
+
+  const sendAudioMessage = audioBlob => {
+    if (socket) {
+      sendSocketAudioMessage(audioBlob.text.audio.text, clientInstanceE2EE, publicKeys);
     }
   };
 
@@ -147,6 +153,7 @@ export const SocketProvider = ({ children }) => {
         selectedRoom,
         authenticate,
         sendMessage,
+        sendAudioMessage,
         editMessage,
         deleteMessage,
         clearMessages,

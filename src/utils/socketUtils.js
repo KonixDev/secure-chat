@@ -86,6 +86,48 @@ export const initializeSocket = ({
       }
     });
 
+    socket.on("audio", async buffer => {
+      try {
+        const msg = await decodeFromBuffer({ buffer, secret: secretKey, iv });
+        const targetMessage = msg.audio.find(p => p.nickname === nickname);
+        if (targetMessage) {
+          let decryptedMessage = await clientInstanceE2EE.decrypt(
+            targetMessage.message,
+            msg.nickname
+          );
+
+          // Verificar si decryptedMessage es un Uint8Array
+          if (!(decryptedMessage instanceof Uint8Array)) {
+            // decryptedMessage = new Uint8Array(decryptedMessage);
+            decryptedMessage = new Uint8Array(decryptedMessage.split(',').map(Number));
+          }
+    
+          console.log('Decrypted message length:', decryptedMessage.length);
+    
+          const blob = new Blob([decryptedMessage], { type: 'audio/webm' });
+          const url = URL.createObjectURL(blob);
+    
+          console.log('Created URL:', url);
+    
+          setMessages(prev => [
+            ...prev,
+            { ...msg, text: "[Encrypted Audio]", audio: url }
+          ]);
+        } else {
+          setMessages(prev => [
+            ...prev,
+            { ...msg, text: "[Encrypted Audio]" }
+          ]);
+        }
+      } catch (error) {
+        console.error("Decryption failed:", error);
+        setMessages(prev => [
+          ...prev,
+          { ...buffer, text: "[Encrypted Audio]" }
+        ]);
+      }
+    });
+
     socket.on("publicKey", async buffer => {
       if (clientInstanceE2EE) {
         const data = await decodeFromBuffer({ buffer, secret: secretKey, iv });
@@ -132,12 +174,13 @@ export const sendMessage = async (msg, clientInstanceE2EE, publicKeys) => {
     const encryptedMessages = await encryptMessageToAllParticipants(
       msg.text,
       publicKeys,
-      clientInstanceE2EE
+      clientInstanceE2EE,
+      msg?.type
     );
     socket.emit(
       "message",
       await encodeToBuffer({
-        data: { data: { participants: encryptedMessages } },
+        data: { data: { participants: encryptedMessages }, type: msg?.type },
         secret: secretKey,
         iv
       })
@@ -148,14 +191,48 @@ export const sendMessage = async (msg, clientInstanceE2EE, publicKeys) => {
 const encryptMessageToAllParticipants = async (
   message,
   participants,
-  clientInstanceE2EE
+  clientInstanceE2EE,
+  type
 ) => {
   return await Promise.all(
     Object.entries(participants).map(async ([key]) => {
       const encryptedMessage = await clientInstanceE2EE.encrypt(message, key);
-      return { nickname: key, message: encryptedMessage };
+      return { nickname: key, message: encryptedMessage, type: type || "text" };
     })
   );
+};
+
+export const sendSocketAudioMessage = async (
+  audioBlob,
+  clientInstanceE2EE,
+  publicKeys
+) => {
+  const reader = new FileReader();
+  reader.readAsArrayBuffer(audioBlob);
+  reader.onloadend = async () => {
+    const arrayBuffer = reader.result;
+    const encodedArrayBuffer = new Uint8Array(arrayBuffer);
+
+    console.log('Array Buffer Length:', encodedArrayBuffer.length);
+
+    const encryptedMessages = await encryptMessageToAllParticipants(
+      encodedArrayBuffer,
+      publicKeys,
+      clientInstanceE2EE,
+      "audio"
+    );
+
+    console.log('Encrypted Messages:', encryptedMessages);
+
+    socket.emit(
+      "audioMessage",
+      await encodeToBuffer({
+        data: { data: { participants: encryptedMessages }, type: "audio" },
+        secret: secretKey,
+        iv
+      })
+    );
+  };
 };
 
 export const handleMessages = async (
