@@ -2,11 +2,12 @@
 
 import { LoggedInUserData, Message, RoomData } from "@/app/data";
 import { cn } from "@/lib/utils";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import ChatBottombar from "./chat-bottombar";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSocket } from "@/context/SocketContext";
+import ImageModal from "./ImageModal";
 
 interface ChatListProps {
   messages?: Message[];
@@ -24,17 +25,35 @@ export function ChatList({
   isMobile,
 }: ChatListProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const { nickname } = useSocket();
+  const { nickname, socket } = useSocket();
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
-  console.log({messages})
-
-  React.useEffect(() => {
+  useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('userTyping', (userNickname: string) => {
+      if (!typingUsers.includes(userNickname)) {
+        setTypingUsers([...typingUsers, userNickname]);
+      }
+    });
+
+    socket.on('userStopTyping', (userNickname: string) => {
+      setTypingUsers(typingUsers.filter(name => name !== userNickname));
+    });
+
+    return () => {
+      socket.off('userTyping');
+      socket.off('userStopTyping');
+    };
+  }, [socket, typingUsers]);
 
   const handleSelectMessage = (messageId: string) => {
     if (selectedMessage === messageId) {
@@ -43,8 +62,20 @@ export function ChatList({
       setSelectedMessage(messageId);
     }
   };
+
+  const handleImageClick = (imageUrl: string) => {
+    setFullscreenImage(imageUrl);
+  };
+
+  const closeImageModal = () => {
+    setFullscreenImage(null);
+  };
+
   return (
     <div className="w-full overflow-y-auto overflow-x-hidden h-full flex flex-col">
+      {fullscreenImage && (
+        <ImageModal imageUrl={fullscreenImage} onClose={closeImageModal} />
+      )}
       <div
         ref={messagesContainerRef}
         className="w-full overflow-y-auto overflow-x-hidden h-full flex flex-col"
@@ -83,7 +114,10 @@ export function ChatList({
                     </AvatarFallback>
                   </Avatar>
                 )}
-                <span className="bg-accent p-3 rounded-md max-w-xs">
+                <span className={cn(
+                  "bg-accent p-3 rounded-md max-w-xs",
+                  message.type === "emoji" ? "text-4xl" : ""
+                )}>
                   {message.nickname !== nickname && (
                     <span className="text-xs text-gray-500">{message.nickname}:</span>
                   )}
@@ -91,10 +125,24 @@ export function ChatList({
                     <span className="text-xs text-gray-500">Yo:</span>
                   )}
                   {" "}
-                  {typeof message.text === 'string' && message.text !== "[Encrypted Audio]" ? (
+                  {message.type === 'image' ? (
+                    <img 
+                      src={message.text} 
+                      alt="image" 
+                      className="cursor-pointer" 
+                      onClick={() => handleImageClick(message.text)} 
+                    />
+                  ) : typeof message.text === 'string' && message.text !== "[Encrypted Audio]" ? (
                     message.text
                   ) : (
-                    <audio controls src={message.audio}></audio>
+                    <audio
+                      className={cn(
+                        isMobile === true ? "w-full" : "",
+                      )}
+                      controls src={message.audio}>
+                      Your browser does not support the
+                      <code>audio</code> element.
+                    </audio>
                   )}
                   {selectedMessage === message.id.toString() && (
                     <div className="text-xs text-gray-500 mt-1">
@@ -113,6 +161,11 @@ export function ChatList({
               <span className="text-xs text-gray-500">{new Date(message.timestamp).toLocaleString()}</span>
             </motion.div>
           ))}
+          {typingUsers.length > 0 && (
+            <div className="text-xs text-gray-500 p-4">
+              {typingUsers.join(", ")} {typingUsers.length > 1 ? 'are' : 'is'} typing...
+            </div>
+          )}
         </AnimatePresence>
       </div>
       <ChatBottombar sendMessage={sendMessage} isMobile={isMobile} sendAudioMessage={sendAudioMessage} />

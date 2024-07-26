@@ -35,6 +35,7 @@ export interface Message {
     text: string;
     expiresAt: string;
     audio: string;
+    type: string;
 }
 
 export interface User {

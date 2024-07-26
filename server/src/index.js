@@ -16,8 +16,11 @@ const {
   sendAudio
 } = require("./controllers/messageController");
 const { getRoom } = require("./services/roomService");
-const { decrypt } = require("./utils/cryptoUtils");
- 
+const {
+  decrypt,
+  decodeFromBuffer,
+  encodeToBuffer
+} = require("./utils/cryptoUtils");
 
 const options = {};
 
@@ -68,6 +71,36 @@ io.on("connection", socket => {
   socket.on("editMessage", data => handleEditMessage(io, socket, data));
 
   socket.on("deleteMessage", id => handleDeleteMessage(io, socket, id));
+
+  socket.on("typing", () => {
+    io.to(socket.roomId).emit("userTyping", socket.nickname);
+  });
+
+  socket.on("stopTyping", () => {
+    io.to(socket.roomId).emit("userStopTyping", socket.nickname);
+  });
+
+  socket.on("join-room-call", () => {
+    io.to(socket.roomId).emit("server-call-joined", {
+      userId: socket.id,
+      nickname: socket.nickname,
+      roomId: socket.roomId
+    });
+  });
+
+  socket.on("leave-room-call", () => {
+    io
+      .to(socket.roomId)
+      .emit("server-call-left", {
+        userId: socket.id,
+        nickname: socket.nickname,
+        roomId: socket.roomId
+      });
+  });
+
+  socket.on("audioStream", audioData => {
+    socket.broadcast.emit("audioStream", audioData);
+  });
 
   socket.emit("keys", {
     SECRET_KEY,

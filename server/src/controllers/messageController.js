@@ -34,11 +34,12 @@ const sendAudio =  async (io, socket, dataBuff) => {
   const dataDecoded = dataBuff.data.participants;
   const data = {
     id: randomUUID(),
-    text: "",
+    text: [],
     audio: dataDecoded,
     nickname: socket.nickname,
     timestamp: Date.now(),
     expiresAt: Date.now() + MESSAGE_EXPIRATION_TIME,
+    type: dataBuff?.type || "audio"
   };
 
   addMessage(socket.roomId, data);

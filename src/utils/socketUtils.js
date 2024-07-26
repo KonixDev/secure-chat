@@ -6,6 +6,10 @@ import { encodeToBuffer, decodeFromBuffer } from "../utils/cryptoUtils";
 let socket;
 let secretKey;
 let iv;
+let mediaRecorder;
+let audioChunks = [];
+
+let isOnCall = false;
 
 export const initializeSocket = ({
   masterKey,
@@ -96,19 +100,12 @@ export const initializeSocket = ({
             msg.nickname
           );
 
-          // Verificar si decryptedMessage es un Uint8Array
           if (!(decryptedMessage instanceof Uint8Array)) {
-            // decryptedMessage = new Uint8Array(decryptedMessage);
             decryptedMessage = new Uint8Array(decryptedMessage.split(',').map(Number));
           }
-    
-          console.log('Decrypted message length:', decryptedMessage.length);
-    
           const blob = new Blob([decryptedMessage], { type: 'audio/webm' });
           const url = URL.createObjectURL(blob);
-    
-          console.log('Created URL:', url);
-    
+
           setMessages(prev => [
             ...prev,
             { ...msg, text: "[Encrypted Audio]", audio: url }
@@ -164,10 +161,97 @@ export const initializeSocket = ({
       );
       setMessages(decryptedMessages);
     });
+ 
+    socket.on('server-call-joined', async (msg) => {
+      startAudioCapture();
+    });
+    
+    socket.on("server-call-left", async (msg) => {
+      //decode 
+      console.log('Server call left', msg);
+      const { userId, nickname, roomId: serverRoom } = msg;
+      if (!userId || !nickname || !serverRoom) return;
+      if (roomId !== serverRoom) return;
+      stopAudioCapture();
+      console.log('Server call left');
+    });
+   
   }
 
   return socket;
 };
+
+const startAudioCapture = () => {
+  isOnCall = true;
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then((stream) => {
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.addEventListener("dataavailable", function (event) {
+            audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener("stop", function () {
+          if (!isOnCall) {
+            console.log('Call ended');
+            return;
+          }
+            var audioBlob = new Blob(audioChunks);
+            audioChunks = [];
+            var fileReader = new FileReader();
+            fileReader.readAsDataURL(audioBlob);
+            fileReader.onloadend = function () {
+                var base64String = fileReader.result;
+                socket.emit("audioStream", base64String);
+            };
+
+            mediaRecorder.start();
+            setTimeout(function () {
+              if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+              }
+            }, 250);
+        });
+
+        mediaRecorder.start();
+        setTimeout(function () {
+            mediaRecorder.stop();
+        }, 250);
+    })
+    .catch((error) => {
+        console.error('Error capturing audio.', error);
+    });
+
+    socket.on('audioStream', (audioData) => {
+      var newData = audioData.split(";");
+      newData[0] = "data:audio/ogg;";
+      newData = newData[0] + newData[1];
+  
+      var audio = new Audio(newData);
+      if (!audio || document.hidden) {
+          return;
+      }
+      audio.play();
+  });
+};
+
+const stopAudioCapture = () => {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    isOnCall = false;
+    mediaRecorder.stop();
+    // Cancel microphone access
+    mediaRecorder.stream.getAudioTracks().forEach(track => track.stop());
+  }
+};
+
+export const initiateAudioCall = async ({ roomId, nickname }) => {
+    socket.emit("join-room-call", "");
+}; 
+
+export const leaveAudioCall = async ({ roomId, nickname }) => {
+    socket.emit("leave-room-call", "");
+    stopAudioCapture();
+}
 
 export const sendMessage = async (msg, clientInstanceE2EE, publicKeys) => {
   if (socket && clientInstanceE2EE) {
@@ -212,18 +296,12 @@ export const sendSocketAudioMessage = async (
   reader.onloadend = async () => {
     const arrayBuffer = reader.result;
     const encodedArrayBuffer = new Uint8Array(arrayBuffer);
-
-    console.log('Array Buffer Length:', encodedArrayBuffer.length);
-
     const encryptedMessages = await encryptMessageToAllParticipants(
       encodedArrayBuffer,
       publicKeys,
       clientInstanceE2EE,
       "audio"
     );
-
-    console.log('Encrypted Messages:', encryptedMessages);
-
     socket.emit(
       "audioMessage",
       await encodeToBuffer({
@@ -232,6 +310,7 @@ export const sendSocketAudioMessage = async (
         iv
       })
     );
+ 
   };
 };
 
@@ -243,12 +322,26 @@ export const handleMessages = async (
   const result = await Promise.all(
     messages.map(async m => {
       try {
-        const targetMessage = m.text.find(p => p.nickname === nickname);
+        let targetMessage = null;
+        if (m.text && m.text.length > 0) {
+          targetMessage = m.text.find(p => p.nickname === nickname);
+        } else if (m.audio) {
+          targetMessage = m.audio.find(p => p.nickname === nickname);
+        }
         if (targetMessage) {
-          const decryptedMessage = await clientInstanceE2EE.decrypt(
+          let decryptedMessage = await clientInstanceE2EE.decrypt(
             targetMessage.message,
             m.nickname
           );
+          if (m.audio){
+            if (!(decryptedMessage instanceof Uint8Array)) {
+              decryptedMessage = new Uint8Array(decryptedMessage.split(',').map(Number));
+            }
+            const blob = new Blob([decryptedMessage], { type: 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            return { ...m, text: "[Encrypted Audio]", audio: url };
+          }
+
           return { ...m, text: decryptedMessage };
         } else {
           return { ...m, text: "[Encrypted message]" };

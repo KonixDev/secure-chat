@@ -1,8 +1,9 @@
 // utils/audioUtils.js
+let mediaRecorder;
 export const recordAudio = () => {
   return new Promise(async resolve => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder = new MediaRecorder(stream);
     const audioChunks = [];
 
     mediaRecorder.addEventListener("dataavailable", event => {
@@ -26,4 +27,10 @@ export const recordAudio = () => {
 
     resolve({ start, stop });
   });
+};
+
+export const cancelAudio = () => {
+  if (!mediaRecorder) return;
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(track => track.stop());
 };
