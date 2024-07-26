@@ -15,11 +15,8 @@ const {
   handleClearMessages,
   sendAudio
 } = require("./controllers/messageController");
-const { getRoom } = require("./services/roomService");
 const {
   decrypt,
-  decodeFromBuffer,
-  encodeToBuffer
 } = require("./utils/cryptoUtils");
 
 const options = {};
@@ -31,7 +28,9 @@ const io = new Server(httpsServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  maxHttpBufferSize: 1e8,
+  pingTimeout: 60000,
 });
 
 // Middleware para transformar y desencriptar datos binarios
